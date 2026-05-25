@@ -1,0 +1,58 @@
+package components
+
+import (
+	"fmt"
+	"math"
+)
+
+// Donut renders the allow/block ratio ring. allow and block are total counts.
+templ Donut(allow, block int) {
+	{{ size := 130 }}
+	{{ total := allow + block }}
+	{{ blockPct := Pct(block, max1(total)) }}
+	{{ allowPct := 100 - blockPct }}
+	{{ r := float64(size)/2 - 12 }}
+	{{ c := 2 * math.Pi * r }}
+	{{ dash, gap := DonutDash(blockPct, c) }}
+	<div style="display:flex; align-items:center; gap:18px; padding:14px 16px 18px;">
+		<svg width={ fmt.Sprintf("%d", size) } height={ fmt.Sprintf("%d", size) }>
+			<circle cx={ fmt.Sprintf("%d", size/2) } cy={ fmt.Sprintf("%d", size/2) } r={ fmt.Sprintf("%.3f", r) }
+				fill="none" stroke="var(--info)" stroke-width="14"></circle>
+			<circle cx={ fmt.Sprintf("%d", size/2) } cy={ fmt.Sprintf("%d", size/2) } r={ fmt.Sprintf("%.3f", r) }
+				fill="none" stroke="var(--block)" stroke-width="14"
+				stroke-dasharray={ fmt.Sprintf("%.3f %.3f", dash, gap) }
+				transform={ fmt.Sprintf("rotate(-90 %d %d)", size/2, size/2) }></circle>
+			<text x={ fmt.Sprintf("%d", size/2) } y={ fmt.Sprintf("%d", size/2-2) }
+				text-anchor="middle" font-size="22" font-weight="600" fill="var(--text)"
+				font-family="var(--mono)">{ fmt.Sprintf("%.1f%%", allowPct) }</text>
+			<text x={ fmt.Sprintf("%d", size/2) } y={ fmt.Sprintf("%d", size/2+14) }
+				text-anchor="middle" font-size="10" fill="var(--text-muted)"
+				font-family="var(--mono)" letter-spacing="0.04em">ALLOWED</text>
+		</svg>
+		<div style="flex:1; display:flex; flex-direction:column; gap:10px;">
+			<div>
+				<div style="display:flex; align-items:baseline; gap:8px;">
+					<span style="width:8px; height:8px; border-radius:2px; background:var(--info);"></span>
+					<span style="font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.06em;">Allow</span>
+				</div>
+				<div class="mono" style="font-size:18px; font-weight:600;">{ FormatNumber(allow) }</div>
+			</div>
+			<div>
+				<div style="display:flex; align-items:baseline; gap:8px;">
+					<span style="width:8px; height:8px; border-radius:2px; background:var(--block);"></span>
+					<span style="font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.06em;">Block</span>
+				</div>
+				<div class="mono" style="font-size:18px; font-weight:600; color:var(--block);">{ FormatNumber(block) }</div>
+			</div>
+		</div>
+	</div>
+}
+
+// max1 returns n when n > 0, else 1. Inline helper kept out of support.go
+// because it's only used here; preserves divide-by-zero protection in Pct.
+func max1(n int) int {
+	if n < 1 {
+		return 1
+	}
+	return n
+}

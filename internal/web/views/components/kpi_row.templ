@@ -1,0 +1,38 @@
+package components
+
+import "blocky/internal/tap"
+
+// KpiRow renders the 4 KPI tiles across the top of the dashboard.
+templ KpiRow(t tap.KpiTotals) {
+	<div class="kpis">
+		@kpiTile("Total Connections", FormatNumber(t.Total), "", t.AllowSpark, "var(--info)")
+		@kpiTile("Allowed", FormatNumber(t.Allow), "is-allow", t.AllowSpark, "var(--allow-2)")
+		@kpiTile("Blocked", FormatNumber(t.Block), "is-block", t.BlockSpark, "var(--block)")
+		@kpiTile("DNS Queries", FormatNumber(t.DNS), "", t.DNSSpark, "var(--text-muted)")
+	</div>
+}
+
+templ kpiTile(label, value, modifier string, spark []float64, color string) {
+	if modifier == "" {
+		<div class="kpi">
+			@kpiTileBody(label, value, spark, color)
+		</div>
+	} else if modifier == "is-allow" {
+		<div class="kpi is-allow">
+			@kpiTileBody(label, value, spark, color)
+		</div>
+	} else {
+		<div class="kpi is-block">
+			@kpiTileBody(label, value, spark, color)
+		</div>
+	}
+}
+
+templ kpiTileBody(label, value string, spark []float64, color string) {
+	<div class="kpi__label">{ label }</div>
+	<div class="kpi__value">{ value }</div>
+	<div class="kpi__sub"><span class="muted">last hour</span></div>
+	<div class="kpi__spark">
+		@Sparkline(spark, color, 84, 30)
+	</div>
+}

@@ -1,0 +1,77 @@
+package components
+
+// Filters renders a filter form for the Live traffic focused view. Each change
+// posts the current values as a JSON object over the active WS connection
+// (htmx-ws's ws-send pattern); the server applies the new filter to all
+// subsequent broadcasts on that connection. No history is replayed.
+templ Filters() {
+	<div class="card">
+		<div class="card__head">
+			<div class="card__title">
+				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+					<path d="M22 3H2l8 9.5V19l4 2v-8.5L22 3Z"></path>
+				</svg>
+				<span>Filters</span>
+			</div>
+		</div>
+		<form
+			id="filters"
+			ws-send
+			hx-trigger="change, keyup changed delay:300ms from:input[type=text]"
+			style="padding:12px 16px; display:flex; flex-direction:column; gap:14px;"
+		>
+			@filterText("container", "Container", "name substring")
+			@filterText("name", "Name", "SNI or QNAME substring")
+			@filterText("dport", "Destination port", "443,53")
+			@filterCheckboxGroup("verdict", "Verdict", []filterOption{
+				{Value: "allow", Label: "allow"},
+				{Value: "drop", Label: "drop"},
+			})
+			@filterCheckboxGroup("protocol", "Protocol", []filterOption{
+				{Value: "tcp", Label: "tcp"},
+				{Value: "udp", Label: "udp"},
+			})
+			@filterCheckboxGroup("reason", "Reason", []filterOption{
+				{Value: "sni-allowed", Label: "sni-allowed"},
+				{Value: "sni-blocked", Label: "sni-blocked"},
+				{Value: "dns-exempt", Label: "dns-exempt"},
+				{Value: "port-allowed", Label: "port-allowed"},
+				{Value: "port-blocked", Label: "port-blocked"},
+				{Value: "non-tls-restricted", Label: "non-tls-restricted"},
+				{Value: "tls-parse-failed", Label: "tls-parse-failed"},
+			})
+		</form>
+	</div>
+}
+
+type filterOption struct {
+	Value string
+	Label string
+}
+
+templ filterText(name, label, placeholder string) {
+	<label style="display:flex; flex-direction:column; gap:4px;">
+		<span style="font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.06em;">{ label }</span>
+		<input
+			type="text"
+			name={ name }
+			placeholder={ placeholder }
+			autocomplete="off"
+			style="background:var(--bg-sunken); border:1px solid var(--border); border-radius:6px; padding:5px 8px; color:var(--text); font-size:12px; font-family:var(--mono);"
+		/>
+	</label>
+}
+
+templ filterCheckboxGroup(name, label string, opts []filterOption) {
+	<fieldset style="border:0; padding:0; margin:0; display:flex; flex-direction:column; gap:6px;">
+		<legend style="font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.06em;">{ label }</legend>
+		<div style="display:flex; flex-wrap:wrap; gap:8px;">
+			for _, o := range opts {
+				<label style="display:flex; align-items:center; gap:4px; font-size:11.5px; color:var(--text-2); font-family:var(--mono);">
+					<input type="checkbox" name={ name } value={ o.Value } style="accent-color: var(--info);"/>
+					{ o.Label }
+				</label>
+			}
+		</div>
+	</fieldset>
+}

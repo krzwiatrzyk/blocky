@@ -1,0 +1,133 @@
+version: "3"
+
+vars:
+  BIN: blocky
+  PKG: blocky
+  BPF_CFLAGS: "-O2 -g -Wall -Werror"
+  GO_BUILD_FLAGS: "-trimpath"
+
+tasks:
+  default:
+    desc: Show available tasks
+    cmds:
+      - task --list
+
+  install:prereqs:
+    desc: Install build prerequisites (clang, llvm, libbpf, golangci-lint, bpftool, templ, tailwindcss)
+    deps: [install:templ, install:tailwind]
+    cmds:
+      - sudo apt-get update
+      - sudo apt-get install -y clang llvm libbpf-dev linux-headers-generic linux-tools-common linux-tools-$(uname -r)
+      - |
+        if ! command -v golangci-lint >/dev/null 2>&1; then
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh \
+            | sh -s -- -b $(go env GOPATH)/bin v1.61.0
+        fi
+    status:
+      - command -v clang
+      - command -v bpftool
+      - command -v golangci-lint
+      - test -f /usr/include/bpf/bpf_helpers.h || test -f /usr/include/aarch64-linux-gnu/bpf/bpf_helpers.h
+
+  install:templ:
+    desc: Install the templ CLI into $(go env GOPATH)/bin
+    cmds:
+      - go install github.com/a-h/templ/cmd/templ@latest
+    status:
+      - test -x "$(go env GOPATH)/bin/templ"
+
+  install:tailwind:
+    desc: Download the standalone tailwindcss CLI into ./bin (Linux x64 or arm64)
+    cmds:
+      - mkdir -p bin
+      - |
+        case "$(uname -m)" in
+          x86_64)  ARCH=x64 ;;
+          aarch64|arm64) ARCH=arm64 ;;
+          *) echo "unsupported arch: $(uname -m)" >&2 ; exit 1 ;;
+        esac
+        curl -sSfL -o bin/tailwindcss \
+          "https://github.com/tailwindlabs/tailwindcss/releases/latest/download/tailwindcss-linux-${ARCH}"
+        chmod +x bin/tailwindcss
+        ./bin/tailwindcss --help >/dev/null
+    status:
+      - test -x bin/tailwindcss
+      - ./bin/tailwindcss --help >/dev/null 2>&1
+
+  vmlinux:
+    desc: Generate vmlinux.h from running kernel BTF (inside colima VM)
+    cmds:
+      - mkdir -p internal/bpf/headers
+      - sudo apt-get install -y linux-tools-generic linux-tools-common
+      - |
+        sudo sh -c 'set -- /usr/lib/linux-tools-*/bpftool; exec "$1" btf dump file /sys/kernel/btf/vmlinux format c' > internal/bpf/headers/vmlinux.h
+    status:
+      - test -f internal/bpf/headers/vmlinux.h
+
+  gen:
+    desc: Generate everything (bpf2go + templ + tailwind)
+    deps: [gen:bpf, gen:templ, gen:tailwind]
+
+  gen:bpf:
+    desc: Run bpf2go via go generate
+    deps: [vmlinux]
+    cmds:
+      - go generate ./...
+
+  gen:templ:
+    desc: Generate _templ.go files from .templ sources
+    cmds:
+      - PATH="$(go env GOPATH)/bin:$PATH" templ generate ./internal/web/...
+
+  gen:tailwind:
+    desc: Build tailwind.css from .templ content using the standalone CLI (v4)
+    cmds:
+      - |
+        ./bin/tailwindcss \
+          -i internal/web/static/tailwind.src.css \
+          -o internal/web/static/tailwind.css \
+          --minify
+
+  tidy:
+    desc: go mod tidy
+    cmds:
+      - go mod tidy
+
+  vet:
+    desc: Run go vet (one at a time)
+    cmds:
+      - go vet ./...
+
+  build:
+    desc: Build the binary (one go build at a time)
+    deps: [gen]
+    cmds:
+      - go build {{.GO_BUILD_FLAGS}} -o {{.BIN}} ./cmd/blocky
+
+  lint:
+    desc: Run golangci-lint
+    cmds:
+      - PATH="$(go env GOPATH)/bin:$PATH" golangci-lint run ./...
+
+  test:
+    desc: Run unit tests (no kernel, no docker)
+    cmds:
+      - go test -race -count=1 ./internal/...
+
+  test:integration:
+    desc: Run BPF integration tests (needs root + linux + kernel features)
+    cmds:
+      - sudo -E env "PATH=$(dirname $(readlink -f $(which go))):$PATH" go test -tags 'integration' -count=1 ./internal/bpf/...
+
+  e2e:
+    desc: Run end-to-end tests with testcontainers (needs docker)
+    deps: [build]
+    cmds:
+      - go test -count=1 -timeout 5m ./e2e/...
+
+  clean:
+    desc: Remove build artifacts
+    cmds:
+      - rm -f {{.BIN}}
+      - rm -f internal/bpf/blockybpf_bpfel.go
+      - rm -f internal/bpf/blockybpf_bpfel.o

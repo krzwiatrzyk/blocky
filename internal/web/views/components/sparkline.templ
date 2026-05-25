@@ -1,0 +1,17 @@
+package components
+
+import "fmt"
+
+// Sparkline renders an inline area-filled SVG line. color is a CSS colour or
+// variable reference (e.g. "var(--info)").
+templ Sparkline(points []float64, color string, w, h int) {
+	{{ line, area := SparkPath(points, w, h) }}
+	if line == "" {
+		<span></span>
+	} else {
+		<svg width={ fmt.Sprintf("%d", w) } height={ fmt.Sprintf("%d", h) } style="display:block">
+			<path d={ area } fill={ color } opacity="0.12"></path>
+			<path d={ line } stroke={ color } stroke-width="1.5" fill="none"></path>
+		</svg>
+	}
+}

@@ -1,0 +1,77 @@
+package components
+
+import (
+	"fmt"
+	"strconv"
+
+	"blocky/internal/types"
+)
+
+// FlowRow renders one row for the live table. data-* attributes feed the
+// chart's MutationObserver.
+//
+// The <tr> is wrapped in a <tbody hx-swap-oob> because HTMX 1.9's oobSwap
+// uses "the content of the node, not the node itself" for non-outerHTML swap
+// methods. With hx-swap-oob on a bare <tr>, the unwrap dumps the <td>
+// children directly into the target tbody, dropping the <tr> entirely.
+templ FlowRow(ev types.FlowEvent) {
+	<tbody hx-swap-oob="afterbegin:#flow-rows">
+		<tr
+			class="anim-in"
+			data-ts={ strconv.FormatInt(ev.Timestamp.UnixMilli(), 10) }
+			data-container={ FlowContainerLabel(ev) }
+			data-verdict={ string(ev.Verdict) }
+		>
+			<td class="ts">{ ev.Timestamp.Format("15:04:05.000") }</td>
+			<td>@verdictBadge(ev.Verdict)</td>
+			<td>
+				<div class="cont">
+					<div class="cont__icon is-sm">{ FirstUpper(FlowContainerLabel(ev)) }</div>
+					<span class="cont__name" style="font-size:12px;">{ FlowContainerLabel(ev) }</span>
+				</div>
+			</td>
+			<td>
+				<div class="domain">
+					<span class="domain__favicon">{ FirstUpper(flowName(ev)) }</span>
+					<span class="domain__name">{ flowName(ev) }</span>
+					<span class="mono faint" style="font-size:11px;">:{ strconv.Itoa(int(ev.DstPort)) }</span>
+				</div>
+			</td>
+			<td class="mono" style="font-size:11.5px; color:var(--text-muted); text-transform:uppercase;">{ ev.Protocol }</td>
+			<td class="num"><span class="faint">—</span></td>
+			<td class="num"><span class="faint">—</span></td>
+		</tr>
+	</tbody>
+}
+
+// FlowContainerLabel picks a display name for one event: ContainerName when
+// present, else short ID, else "if<ifindex>".
+func FlowContainerLabel(ev types.FlowEvent) string {
+	if ev.ContainerName != "" {
+		return ev.ContainerName
+	}
+	if len(ev.ContainerID) >= 12 {
+		return ev.ContainerID[:12]
+	}
+	if ev.ContainerID != "" {
+		return ev.ContainerID
+	}
+	return fmt.Sprintf("if%d", ev.Ifindex)
+}
+
+// flowName picks the SNI / QNAME if present; falls back to the destination IP
+// so the column never reads blank.
+func flowName(ev types.FlowEvent) string {
+	if ev.Name != "" {
+		return ev.Name
+	}
+	return ev.DstIP
+}
+
+templ verdictBadge(v types.Verdict) {
+	if v == types.VerdictAllow {
+		<span class="badge is-allow">allow</span>
+	} else {
+		<span class="badge is-block">block</span>
+	}
+}

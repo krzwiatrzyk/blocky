@@ -1,0 +1,16 @@
+services:
+  test:
+    container_name: blocky-test
+    image: busybox:latest
+    # External resolvers are required so DNS queries traverse the veth where
+    # blocky's BPF program can observe them. Docker's default 127.0.0.11
+    # embedded resolver is intercepted by iptables inside the container netns
+    # and never crosses the veth — meaning the DNS cache stays empty and flow
+    # events for TCP/443 never get their Name field enriched.
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    labels:
+      blocky.enabled: "true"
+      blocky.allowed-ports: "53,443"
+      blocky.allowed-https-domains: "www.google.com"

@@ -1,0 +1,26 @@
+package components
+
+// FlowTable renders the live recent-traffic table chrome. Rows arrive as
+// out-of-band swaps via the WS stream and are prepended to #flow-rows so the
+// newest event is always on top.
+//
+// withChart controls whether the legend/columns differ — the Live traffic
+// focused view sets it true to render a wider table.
+templ FlowTable() {
+	<div style="overflow:auto; max-height:460px;">
+		<table class="table">
+			<thead>
+				<tr>
+					<th style="width:12%">Time</th>
+					<th style="width:9%">Action</th>
+					<th style="width:18%">Container</th>
+					<th>SNI / Host</th>
+					<th style="width:7%">Proto</th>
+					<th class="num" style="width:10%">Bytes</th>
+					<th class="num" style="width:8%">RTT</th>
+				</tr>
+			</thead>
+			<tbody id="flow-rows"></tbody>
+		</table>
+	</div>
+}

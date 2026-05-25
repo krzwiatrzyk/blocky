@@ -1,0 +1,151 @@
+package views
+
+import (
+	"blocky/internal/tap"
+	"blocky/internal/web/views/components"
+)
+
+// DashboardData bundles everything the / page renders. Page chrome (meta)
+// is rendered by Layout; Agg + Containers drive the visible widgets.
+type DashboardData struct {
+	Meta       PageMeta
+	Agg        tap.Aggregate
+	Containers []components.ContainerRow
+}
+
+// Dashboard is the / overview page.
+//
+// Live updates use two independent mechanisms:
+//
+//   - WS at /ws?view=traffic — server pushes <tr> OOB swaps that prepend to
+//     the recent-traffic table. The chart's MutationObserver picks them up.
+//   - HTMX poll every 10s on /overview — the response is a self-contained
+//     fragment of hx-swap-oob elements that refresh the KPI tiles, donut,
+//     containers list, and top-destinations panel.
+//
+// The chart mount lives in the outer body so the uPlot instance is created
+// once and never torn out.
+templ Dashboard(d DashboardData) {
+	@Layout(d.Meta) {
+		<div
+			hx-ext="ws"
+			ws-connect="/ws?view=dashboard"
+			style="display:flex; flex-direction:column; gap:18px;"
+		>
+			<!-- Hidden polling trigger; /overview returns only OOB swap fragments. -->
+			<span id="overview-poll" hx-get={ "/overview?range=" + d.Meta.Range } hx-trigger="load delay:10s, every 10s" hx-swap="none"></span>
+
+			<div id="kpis-frag">
+				@components.KpiRow(d.Agg.Totals)
+			</div>
+
+			<div class="grid-2">
+				<div class="card">
+					<div class="card__head">
+						<div class="card__title">
+							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+								<path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+							</svg>
+							<span>Traffic over time</span>
+						</div>
+						<span class="card__sub">{ components.RangeBucketLabel(d.Meta.Range) }</span>
+						<div class="spacer" style="flex:1"></div>
+						<label class="card__sub" style="display:flex; align-items:center; gap:6px;">
+							Group by
+							<select id="chart-group" class="btn" style="padding:4px 8px; font-family:var(--mono); font-size:11px;">
+								<option value="container">container</option>
+								<option value="verdict">verdict</option>
+							</select>
+						</label>
+					</div>
+					<div id="chart" data-view="dashboard" data-range={ d.Meta.Range } class="chart-mount"></div>
+				</div>
+				<div class="card">
+					<div class="card__head">
+						<div class="card__title">
+							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+								<path d="M12 2 4 5v7c0 5 4 9 8 10 4-1 8-5 8-10V5l-8-3Z"></path>
+							</svg>
+							<span>Allow vs Block</span>
+						</div>
+						<span id="donut-sub" class="card__sub">{ components.FormatNumber(d.Agg.Totals.Total) } connections</span>
+					</div>
+					<div id="donut-frag">
+						@components.Donut(d.Agg.Totals.Allow, d.Agg.Totals.Block)
+					</div>
+				</div>
+			</div>
+
+			<div class="card">
+				<div class="card__head">
+					<div class="card__title">
+						<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+							<path d="M21 8 12 3 3 8l9 5 9-5Z"></path>
+							<path d="M3 8v8l9 5 9-5V8"></path>
+						</svg>
+						<span>Containers</span>
+					</div>
+					<span id="containers-sub" class="card__sub">{ components.FormatNumber(len(d.Containers)) } known</span>
+				</div>
+				<div id="containers-frag" style="overflow-x:auto;">
+					@components.ContainerList(d.Containers)
+				</div>
+			</div>
+
+			<div class="grid-2">
+				<div class="card">
+					<div class="card__head">
+						<div class="card__title">
+							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+								<path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+							</svg>
+							<span>Recent traffic</span>
+							<span class="live-pill"><span class="ldot"></span>LIVE</span>
+						</div>
+						<span class="card__sub">SNI / Host · all containers</span>
+						<div class="spacer" style="flex:1"></div>
+						<button id="flow-pause" class="btn mono" style="font-size:10.5px;" onclick="window.__blockyTogglePause && window.__blockyTogglePause()" title="Pause / resume live row updates">PAUSE</button>
+					</div>
+					@components.FlowTable()
+				</div>
+
+				<div class="card">
+					<div class="card__head">
+						<div class="card__title">
+							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+								<circle cx="12" cy="12" r="9"></circle>
+								<path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"></path>
+							</svg>
+							<span>Top destinations</span>
+						</div>
+						<span class="card__sub">last hour</span>
+					</div>
+					<div id="top-dest-frag">
+						@components.TopDestinations(d.Agg.TopDest)
+					</div>
+				</div>
+			</div>
+		</div>
+	}
+}
+
+// OverviewFragment is the HTMX-polled payload. Every element is OOB-targeted
+// so the visible response body stays empty (the wrapping <output> is dropped
+// because hx-swap="none" on the trigger). HTMX picks each hx-swap-oob node
+// up and swaps it into the matching dashboard slot.
+templ OverviewFragment(d DashboardData) {
+	<div hx-swap-oob="innerHTML:#kpis-frag">
+		@components.KpiRow(d.Agg.Totals)
+	</div>
+	<div hx-swap-oob="innerHTML:#donut-frag">
+		@components.Donut(d.Agg.Totals.Allow, d.Agg.Totals.Block)
+	</div>
+	<span hx-swap-oob="innerHTML:#donut-sub">{ components.FormatNumber(d.Agg.Totals.Total) } connections</span>
+	<div hx-swap-oob="innerHTML:#containers-frag">
+		@components.ContainerList(d.Containers)
+	</div>
+	<span hx-swap-oob="innerHTML:#containers-sub">{ components.FormatNumber(len(d.Containers)) } known</span>
+	<div hx-swap-oob="innerHTML:#top-dest-frag">
+		@components.TopDestinations(d.Agg.TopDest)
+	</div>
+}

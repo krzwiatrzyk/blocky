@@ -1,0 +1,36 @@
+package components
+
+// CacheTable wraps the IP→domain cache view. The body is polled every 5s via
+// HTMX; on each poll the server re-renders the tbody fragment with the
+// current snapshot.
+templ CacheTable() {
+	<div class="card">
+		<div class="card__head">
+			<div class="card__title">
+				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+					<circle cx="12" cy="12" r="9"></circle>
+					<path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"></path>
+				</svg>
+				<span>Resolved-name cache</span>
+			</div>
+			<span class="card__sub">refreshes every 5s</span>
+		</div>
+		<div style="overflow:auto; max-height:300px;">
+			<table class="table">
+				<thead>
+					<tr>
+						<th>Container</th>
+						<th>Name</th>
+						<th>IPs</th>
+					</tr>
+				</thead>
+				<tbody
+					id="cache-tbody"
+					hx-get="/dns/cache"
+					hx-trigger="load, every 5s"
+					hx-swap="innerHTML"
+				></tbody>
+			</table>
+		</div>
+	</div>
+}

@@ -1,0 +1,117 @@
+package components
+
+import (
+	"fmt"
+	"strings"
+)
+
+// ContainerList renders the dashboard's containers table. rows joins each
+// reconciler.Container with its per-container aggregated stats.
+templ ContainerList(rows []ContainerRow) {
+	<table class="table">
+		<thead>
+			<tr>
+				<th style="width:26%">Container</th>
+				<th>Image</th>
+				<th>Allow rules</th>
+				<th style="width:9%">Status</th>
+				<th class="num" style="width:10%">Allowed</th>
+				<th class="num" style="width:9%">Blocked</th>
+				<th style="width:14%">Activity</th>
+			</tr>
+		</thead>
+		<tbody>
+			if len(rows) == 0 {
+				<tr><td colspan="7" class="empty">No containers under policy.</td></tr>
+			} else {
+				for _, row := range rows {
+					@containerRow(row)
+				}
+			}
+		</tbody>
+	</table>
+}
+
+templ containerRow(row ContainerRow) {
+	{{ c := row.Container }}
+	{{ stats := row.Stats }}
+	{{ rules := allRules(c) }}
+	{{ blockPct := Pct(stats.Block, max1(stats.Allow+stats.Block)) }}
+	<tr>
+		<td>
+			<div class="cont">
+				<div class="cont__icon">{ FirstUpper(c.Name) }</div>
+				<div style="display:flex; flex-direction:column; min-width:0;">
+					<span class="cont__name">{ c.Name }</span>
+					<span class="cont__id mono">{ ShortID(c.ID) } · up { FormatUptime(c.CreatedAt) }</span>
+				</div>
+			</div>
+		</td>
+		<td class="mono" style="font-size:12px; color:var(--text-muted);">{ c.Image }</td>
+		<td>
+			<div style="display:flex; gap:4px; flex-wrap:wrap;">
+				if len(rules) == 0 {
+					if c.Policy.Observe {
+						<span class="badge is-info">observe-only</span>
+					} else {
+						<span class="label-chip mono"><span class="k">no rules</span></span>
+					}
+				}
+				for i, r := range rules {
+					if i < 3 {
+						<span class="label-chip mono"><span class="v">{ r }</span></span>
+					}
+				}
+				if len(rules) > 3 {
+					<span class="label-chip mono"><span class="k">{ fmt.Sprintf("+%d", len(rules)-3) }</span></span>
+				}
+			</div>
+		</td>
+		<td>
+			@statusBadge(c.Status)
+		</td>
+		<td class="num">{ FormatNumber(stats.Allow) }</td>
+		if stats.Block > 0 {
+			<td class="num" style="color:var(--block);">{ FormatNumber(stats.Block) }</td>
+		} else {
+			<td class="num" style="color:var(--text-faint);">0</td>
+		}
+		<td>
+			<div style="display:flex; align-items:center; gap:8px;">
+				if len(stats.Spark) > 0 {
+					if blockPct > 20 {
+						@Sparkline(stats.Spark, "var(--block)", 70, 22)
+					} else {
+						@Sparkline(stats.Spark, "var(--info)", 70, 22)
+					}
+				} else {
+					<span style="width:70px; height:22px;"></span>
+				}
+				<span class="mono" style="font-size:11px; color:var(--text-muted); min-width:32px;">
+					if blockPct > 1 {
+						{ fmt.Sprintf("%.0f%%▼", blockPct) }
+					} else {
+						{ "ok" }
+					}
+				</span>
+			</div>
+		</td>
+	</tr>
+}
+
+templ statusBadge(status string) {
+	switch status {
+		case "active":
+			<span class="badge is-allow"><span class="dotmark"></span>up</span>
+		case "failed:bpf-attach-failed", "failed:veth-not-found":
+			<span class="badge is-block"><span class="dotmark"></span>failed</span>
+		default:
+			if strings.HasPrefix(status, "skipped") {
+				<span class="badge is-muted"><span class="dotmark"></span>skipped</span>
+			} else if strings.HasPrefix(status, "failed") {
+				<span class="badge is-block"><span class="dotmark"></span>failed</span>
+			} else {
+				<span class="badge is-muted"><span class="dotmark"></span>{ status }</span>
+			}
+	}
+}

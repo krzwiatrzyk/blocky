@@ -1,0 +1,53 @@
+package views
+
+import "blocky/internal/web/views/components"
+
+// DNS is the body of the /dns dashboard. The WS handler defaults its filter
+// to UDP/53 so the table surfaces query events. Below the live table sits a
+// snapshot of the daemon's IP→domain cache, refreshed every 5s via HTMX.
+templ DNS(meta PageMeta) {
+	@Layout(meta) {
+		<div
+			hx-ext="ws"
+			ws-connect="/ws?view=dns"
+			style="display:flex; flex-direction:column; gap:18px;"
+		>
+			<div class="card">
+				<div class="card__head">
+					<div class="card__title">
+						<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+							<circle cx="12" cy="12" r="9"></circle>
+							<path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"></path>
+						</svg>
+						<span>DNS queries</span>
+						<span class="live-pill"><span class="ldot"></span>LIVE</span>
+					</div>
+					<span class="card__sub">{ components.RangeBucketLabel(meta.Range) }</span>
+					<div class="spacer" style="flex:1"></div>
+					<label class="card__sub" style="display:flex; align-items:center; gap:6px;">
+						Group by
+						<select id="chart-group" class="btn" style="padding:4px 8px; font-family:var(--mono); font-size:11px;">
+							<option value="container">container</option>
+							<option value="verdict">verdict</option>
+						</select>
+					</label>
+				</div>
+				<div id="chart" data-view="dns" data-range={ meta.Range } class="chart-mount"></div>
+			</div>
+
+			<div class="card">
+				<div class="card__head">
+					<div class="card__title">
+						<span>Recent DNS</span>
+					</div>
+					<span class="card__sub">UDP/53 only</span>
+					<div class="spacer" style="flex:1"></div>
+					<button id="flow-pause" class="btn mono" style="font-size:10.5px;" onclick="window.__blockyTogglePause && window.__blockyTogglePause()">PAUSE</button>
+				</div>
+				@components.FlowTable()
+			</div>
+
+			@components.CacheTable()
+		</div>
+	}
+}

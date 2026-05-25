@@ -1,0 +1,75 @@
+# Run blocky as a single-container service.
+#
+# Why each capability / mount / namespace is needed:
+#
+#   network_mode: host    The eBPF program attaches to host-side veth pairs
+#                         of OTHER containers. The daemon has to live in the
+#                         host network namespace to see them; bridge networking
+#                         would isolate it from the very interfaces it needs
+#                         to instrument.
+#
+#   pid: host             The reconciler resolves each managed container's
+#                         netns by walking /proc/<pid>/ns/net for that
+#                         container's PID. Without host PID those entries are
+#                         invisible.
+#
+#   privileged: true      Shorthand for the set of capabilities BPF program
+#                         loading + TCX attachment + map creation need
+#                         (CAP_BPF, CAP_NET_ADMIN, CAP_SYS_ADMIN,
+#                         CAP_SYS_RESOURCE), plus the freedom to bump
+#                         RLIMIT_MEMLOCK on older kernels. If you'd rather
+#                         drop privileged, comment it out and use the
+#                         explicit cap_add list below.
+#
+# Mounts:
+#   docker.sock           Docker events + container inspect (labels, PID).
+#   /sys/kernel/btf       CO-RE BTF for the running kernel.
+#   /sys/fs/bpf           BPFFS — currently unused (we don't pin maps), but
+#                         mounted so future pin support works without a
+#                         compose change.
+
+services:
+  blocky:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: blocky:local
+    container_name: blocky
+    restart: unless-stopped
+
+    network_mode: host
+    pid: host
+
+    privileged: true
+    # Alternative to `privileged: true` if your security policy disallows it.
+    # Comment out `privileged: true` and uncomment the block below.
+    # cap_add:
+    #   - BPF
+    #   - NET_ADMIN
+    #   - SYS_ADMIN
+    #   - SYS_RESOURCE
+    # security_opt:
+    #   - apparmor=unconfined
+    #   - seccomp=unconfined
+
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /sys/kernel/btf:/sys/kernel/btf:ro
+      - /sys/fs/bpf:/sys/fs/bpf
+
+    environment:
+      BLOCKY_API_ADDR: "0.0.0.0:8080"
+      BLOCKY_LOG_FORMAT: "json"
+      BLOCKY_LOG_LEVEL: "info"
+      BLOCKY_DOCKER_HOST: "unix:///var/run/docker.sock"
+
+    # The dashboard + REST API live on :8080 in the host network namespace,
+    # so reach them at http://<docker-host>:8080/ — no compose port mapping
+    # needed (network_mode: host disables it).
+
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/v1/health"]
+      interval: 10s
+      timeout: 2s
+      retries: 3
+      start_period: 5s

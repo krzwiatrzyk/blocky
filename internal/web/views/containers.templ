@@ -1,0 +1,54 @@
+package views
+
+import "blocky/internal/web/views/components"
+
+// ContainersData is the payload for the /containers route.
+type ContainersData struct {
+	Meta       PageMeta
+	Containers []components.ContainerRow
+	Filter     string // "all" | "active" | "failed" | "skipped"
+}
+
+// Containers is the focused container-list view. The page reloads on status
+// filter change (the filter is in the query string); the table inside polls
+// /containers/fragment every 10s to refresh stats without a full reload.
+templ Containers(d ContainersData) {
+	@Layout(d.Meta) {
+		<div class="card">
+			<div class="card__head">
+				<div class="card__title">
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M21 8 12 3 3 8l9 5 9-5Z"></path>
+						<path d="M3 8v8l9 5 9-5V8"></path>
+					</svg>
+					<span>Containers</span>
+				</div>
+				<span class="card__sub">{ components.FormatNumber(len(d.Containers)) } shown</span>
+				<div class="spacer" style="flex:1"></div>
+				<div class="tabs">
+					@statusFilterLink("all", d.Filter)
+					@statusFilterLink("active", d.Filter)
+					@statusFilterLink("failed", d.Filter)
+					@statusFilterLink("skipped", d.Filter)
+				</div>
+			</div>
+			<div
+				id="containers-tbody"
+				hx-get={ "/containers/fragment?status=" + d.Filter }
+				hx-trigger="every 10s"
+				hx-swap="innerHTML"
+				style="overflow-x:auto;"
+			>
+				@components.ContainerList(d.Containers)
+			</div>
+		</div>
+	}
+}
+
+templ statusFilterLink(value, current string) {
+	if value == current {
+		<a href={ templ.SafeURL("?status=" + value) } class="is-active">{ value }</a>
+	} else {
+		<a href={ templ.SafeURL("?status=" + value) }>{ value }</a>
+	}
+}

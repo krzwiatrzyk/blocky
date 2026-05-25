@@ -1,0 +1,4 @@
+version: 3
+
+tasks:
+  sh: docker compose run --rm -it test sh

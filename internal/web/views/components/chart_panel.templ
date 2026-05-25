@@ -1,0 +1,26 @@
+package components
+
+// ChartPanel renders the bar chart's surrounding card chrome. The mount div
+// (id=chart, data-view=…) is consumed by app.js's uPlot aggregator.
+templ ChartPanel(view, sub string) {
+	<div class="card">
+		<div class="card__head">
+			<div class="card__title">
+				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+					<path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+				</svg>
+				<span>Flows · last 5 min</span>
+			</div>
+			<span class="card__sub">{ sub }</span>
+			<div class="spacer" style="flex:1"></div>
+			<label class="card__sub" style="display:flex; align-items:center; gap:6px;">
+				Group by
+				<select id="chart-group" class="btn" style="padding:4px 8px; font-family:var(--mono); font-size:11px;">
+					<option value="container">container</option>
+					<option value="verdict">verdict</option>
+				</select>
+			</label>
+		</div>
+		<div id="chart" data-view={ view } class="chart-mount"></div>
+	</div>
+}

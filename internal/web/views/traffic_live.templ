@@ -1,0 +1,51 @@
+package views
+
+import "blocky/internal/web/views/components"
+
+// TrafficLive is the focused /traffic view: chart + live table + filter rail.
+templ TrafficLive(meta PageMeta) {
+	@Layout(meta) {
+		<div
+			hx-ext="ws"
+			ws-connect="/ws?view=traffic"
+			style="display:flex; flex-direction:column; gap:18px;"
+		>
+			<div class="card">
+				<div class="card__head">
+					<div class="card__title">
+						<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+							<path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+						</svg>
+						<span>Traffic chart</span>
+						<span class="live-pill"><span class="ldot"></span>LIVE</span>
+					</div>
+					<span class="card__sub">{ components.RangeBucketLabel(meta.Range) }</span>
+					<div class="spacer" style="flex:1"></div>
+					<label class="card__sub" style="display:flex; align-items:center; gap:6px;">
+						Group by
+						<select id="chart-group" class="btn" style="padding:4px 8px; font-family:var(--mono); font-size:11px;">
+							<option value="container">container</option>
+							<option value="verdict">verdict</option>
+						</select>
+					</label>
+				</div>
+				<div id="chart" data-view="traffic" data-range={ meta.Range } class="chart-mount"></div>
+			</div>
+
+			<div class="grid-2" style="grid-template-columns: 1fr 280px;">
+				<div class="card">
+					<div class="card__head">
+						<div class="card__title">
+							<span>Recent traffic</span>
+						</div>
+						<span class="card__sub">SNI / Host</span>
+						<div class="spacer" style="flex:1"></div>
+						<button id="flow-pause" class="btn mono" style="font-size:10.5px;" onclick="window.__blockyTogglePause && window.__blockyTogglePause()">PAUSE</button>
+					</div>
+					@components.FlowTable()
+				</div>
+				@components.Filters()
+			</div>
+		</div>
+	}
+}

@@ -1,0 +1,49 @@
+package components
+
+// Header renders the per-page page title strip: title + monospace breadcrumbs,
+// a LIVE pill when live is true, a time-range segmented control, an export
+// link, and a sun-icon theme-toggle that flips data-theme via app.js.
+templ Header(title, crumbs, activeRange string, live bool) {
+	<div class="header">
+		<div>
+			<div class="header__title">{ title }</div>
+			if crumbs != "" {
+				<div class="header__crumbs">{ crumbs }</div>
+			}
+		</div>
+		<div class="header__spacer"></div>
+		<div class="header__actions">
+			if live {
+				<span class="live-pill"><span class="ldot"></span>LIVE</span>
+			}
+			<div class="time-range">
+				@rangeButton("5m", activeRange)
+				@rangeButton("15m", activeRange)
+				@rangeButton("1h", activeRange)
+				@rangeButton("6h", activeRange)
+				@rangeButton("24h", activeRange)
+			</div>
+			<a class="btn" href="/v1/flows" title="Export flows JSON" download="flows.json">
+				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+					<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+					<path d="m7 10 5 5 5-5"></path>
+					<path d="M12 15V3"></path>
+				</svg>
+			</a>
+			<button class="btn" onclick="window.__blockyToggleTheme && window.__blockyToggleTheme()" title="Toggle theme" aria-label="Toggle theme">
+				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+					<circle cx="12" cy="12" r="4"></circle>
+					<path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>
+				</svg>
+			</button>
+		</div>
+	</div>
+}
+
+templ rangeButton(label, active string) {
+	if label == active {
+		<a href={ templ.SafeURL("?range=" + label) } class="is-active">{ label }</a>
+	} else {
+		<a href={ templ.SafeURL("?range=" + label) }>{ label }</a>
+	}
+}

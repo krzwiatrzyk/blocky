@@ -1,0 +1,100 @@
+package views
+
+import (
+	"fmt"
+	"strings"
+
+	"blocky/internal/types"
+)
+
+// RulesData is the payload for /rules.
+type RulesData struct {
+	Meta       PageMeta
+	Containers []types.Container
+}
+
+// Rules is the read-only policy view. Containers are grouped one per card-row;
+// each row shows the exact / suffix / port lists for that container.
+templ Rules(d RulesData) {
+	@Layout(d.Meta) {
+		<div class="card">
+			<div class="card__head">
+				<div class="card__title">
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M12 2 4 5v7c0 5 4 9 8 10 4-1 8-5 8-10V5l-8-3Z"></path>
+					</svg>
+					<span>Policies</span>
+				</div>
+				<span class="card__sub">labels are the only source · read-only</span>
+			</div>
+			if len(d.Containers) == 0 {
+				<div class="empty">No containers under policy.</div>
+			} else {
+				for _, c := range d.Containers {
+					@ruleGroup(c)
+				}
+			}
+		</div>
+	}
+}
+
+templ ruleGroup(c types.Container) {
+	<div class="rule-group">
+		<div class="rule-group__title">
+			<div style="display:flex; flex-direction:column; min-width:0;">
+				<span class="cont__name">{ c.Name }</span>
+				<span class="mono" style="color:var(--text-faint); font-size:11px;">{ shortIDForRules(c.ID) }</span>
+				<span class="mono" style="color:var(--text-muted); font-size:11px;">{ c.Image }</span>
+			</div>
+		</div>
+		<div class="rule-group__lists">
+			if len(c.Policy.Exact) > 0 {
+				<div class="rule-group__row">
+					<span class="k">exact</span>
+					<div class="vs">
+						for _, e := range c.Policy.Exact {
+							<span class="label-chip mono"><span class="v">{ e }</span></span>
+						}
+					</div>
+				</div>
+			}
+			if len(c.Policy.Suffix) > 0 {
+				<div class="rule-group__row">
+					<span class="k">suffix</span>
+					<div class="vs">
+						for _, s := range c.Policy.Suffix {
+							<span class="label-chip mono"><span class="v">{ "*." + strings.TrimPrefix(s, ".") }</span></span>
+						}
+					</div>
+				</div>
+			}
+			if len(c.Policy.Ports) > 0 {
+				<div class="rule-group__row">
+					<span class="k">ports</span>
+					<div class="vs">
+						for _, p := range c.Policy.Ports {
+							<span class="label-chip mono"><span class="v">{ fmt.Sprintf("%d", p) }</span></span>
+						}
+					</div>
+				</div>
+			}
+			if len(c.Policy.Exact)+len(c.Policy.Suffix)+len(c.Policy.Ports) == 0 {
+				if c.Policy.Observe {
+					<div class="rule-group__row">
+						<span class="k">mode</span>
+						<div class="vs"><span class="badge is-info">observe-only · all traffic allowed and emitted</span></div>
+					</div>
+				} else {
+					<div class="rule-group__row"><span class="k">empty</span><span class="muted">no rules</span></div>
+				}
+			}
+		</div>
+	</div>
+}
+
+func shortIDForRules(id string) string {
+	if len(id) >= 12 {
+		return id[:12]
+	}
+	return id
+}

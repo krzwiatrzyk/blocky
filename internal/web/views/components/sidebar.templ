@@ -1,0 +1,113 @@
+package components
+
+// Sidebar renders the left navigation rail. activeView is one of:
+//   "dashboard" | "containers" | "traffic" | "dns" | "rules" | "settings"
+templ Sidebar(activeView string) {
+	<aside class="sidebar">
+		<div class="sidebar__brand">
+			<div class="brand-logo" aria-hidden="true"></div>
+			<div class="brand-name">Blocky</div>
+			<div class="brand-version mono">v0.4.2</div>
+		</div>
+
+		<div class="sidebar__group">
+			<div class="sidebar__label">Monitor</div>
+			@navItem("/", "dashboard", "Dashboard", "", "", activeView)
+			@navItem("/containers", "containers", "Containers", "", "", activeView)
+			@navItemLive("/traffic", "traffic", "Live traffic", activeView)
+			@navItem("/dns", "dns", "DNS", "", "", activeView)
+			@navItem("/rules", "rules", "Rules", "", "", activeView)
+		</div>
+
+		<div class="sidebar__group">
+			<div class="sidebar__label">System</div>
+			@navItem("/settings", "settings", "Settings", "", "", activeView)
+		</div>
+
+		<div class="sidebar__status">
+			<span class="dot"></span>
+			<span>eBPF probe attached</span>
+			<span class="mono" style="margin-left:auto; color:var(--text-faint); font-size:10px;">kprobe</span>
+		</div>
+	</aside>
+}
+
+// navItem renders one anchor row. count and countClass are optional. Icon is
+// keyed by the route id so the SVG is co-located with the row.
+templ navItem(href, id, label, count, countClass, active string) {
+	if id == active {
+		<a href={ templ.SafeURL(href) } class="nav-item is-active">
+			<span class="nav-item__icon">@navIcon(id)</span>
+			<span>{ label }</span>
+			if count != "" {
+				<span class={ "nav-item__count", templ.KV(countClass, countClass != "") }>{ count }</span>
+			}
+		</a>
+	} else {
+		<a href={ templ.SafeURL(href) } class="nav-item">
+			<span class="nav-item__icon">@navIcon(id)</span>
+			<span>{ label }</span>
+			if count != "" {
+				<span class={ "nav-item__count", templ.KV(countClass, countClass != "") }>{ count }</span>
+			}
+		</a>
+	}
+}
+
+templ navItemLive(href, id, label, active string) {
+	if id == active {
+		<a href={ templ.SafeURL(href) } class="nav-item is-active">
+			<span class="nav-item__icon">@navIcon(id)</span>
+			<span>{ label }</span>
+			<span class="live-pill" style="padding:0 6px; font-size:10px; margin-left:auto;">
+				<span class="ldot"></span>LIVE
+			</span>
+		</a>
+	} else {
+		<a href={ templ.SafeURL(href) } class="nav-item">
+			<span class="nav-item__icon">@navIcon(id)</span>
+			<span>{ label }</span>
+			<span class="live-pill" style="padding:0 6px; font-size:10px; margin-left:auto;">
+				<span class="ldot"></span>LIVE
+			</span>
+		</a>
+	}
+}
+
+// navIcon emits the inline SVG for a nav row. lucide-ish stroke icons sized
+// to 16px (parent .nav-item__icon constrains the box).
+templ navIcon(id string) {
+	switch id {
+		case "dashboard":
+			<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+				<rect x="3" y="3" width="7" height="9" rx="1"></rect>
+				<rect x="14" y="3" width="7" height="5" rx="1"></rect>
+				<rect x="14" y="12" width="7" height="9" rx="1"></rect>
+				<rect x="3" y="16" width="7" height="5" rx="1"></rect>
+			</svg>
+		case "containers":
+			<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+				<path d="M21 8 12 3 3 8l9 5 9-5Z"></path>
+				<path d="M3 8v8l9 5 9-5V8"></path>
+				<path d="m12 13 0 8"></path>
+			</svg>
+		case "traffic":
+			<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+				<path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+			</svg>
+		case "dns":
+			<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+				<circle cx="12" cy="12" r="9"></circle>
+				<path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"></path>
+			</svg>
+		case "rules":
+			<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+				<path d="M12 2 4 5v7c0 5 4 9 8 10 4-1 8-5 8-10V5l-8-3Z"></path>
+			</svg>
+		case "settings":
+			<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+				<circle cx="12" cy="12" r="3"></circle>
+				<path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"></path>
+			</svg>
+	}
+}

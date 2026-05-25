@@ -1,0 +1,71 @@
+package components
+
+import (
+	"fmt"
+
+	"blocky/internal/tap"
+)
+
+// TopDestinations renders the numbered list of most-frequent SNI/DNS names
+// observed over the aggregation window, each with a stacked allow/block bar.
+templ TopDestinations(rows []tap.DestStat) {
+	if len(rows) == 0 {
+		<div class="empty">No traffic observed yet.</div>
+	} else {
+		{{ maxCount := 1 }}
+		for _, r := range rows {
+			if r.Count > maxCount {
+				{{ maxCount = r.Count }}
+			}
+		}
+		<div>
+			for i, r := range rows {
+				@topDestRow(i, r, maxCount, i == len(rows)-1)
+			}
+		</div>
+	}
+}
+
+templ topDestRow(i int, r tap.DestStat, maxCount int, last bool) {
+	{{ allowPct := Pct(r.Allow, max1(r.Count)) }}
+	{{ blockPct := Pct(r.Block, max1(r.Count)) }}
+	{{ barW := Pct(r.Count, max1(maxCount)) }}
+	if last {
+		<div style="padding:9px 16px; border-bottom:0;">
+			@topDestInner(i, r, allowPct, blockPct, barW)
+		</div>
+	} else {
+		<div style="padding:9px 16px; border-bottom:1px solid var(--border);">
+			@topDestInner(i, r, allowPct, blockPct, barW)
+		</div>
+	}
+}
+
+templ topDestInner(i int, r tap.DestStat, allowPct, blockPct, barW float64) {
+	<div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+		<span style="width:18px; color:var(--text-faint); font-family:var(--mono); font-size:11px;">
+			{ fmt.Sprintf("%02d", i+1) }
+		</span>
+		<span class="domain__favicon">{ FirstUpper(r.Name) }</span>
+		<span class="mono" style="font-size:12px; color:var(--text); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{ r.Name }</span>
+		<span class="mono" style="font-size:12px; color:var(--text); font-variant-numeric:tabular-nums;">{ FormatNumber(r.Count) }</span>
+		if r.Block > 0 {
+			<span class="badge is-block">blocked</span>
+		}
+	</div>
+	<div class="bar-stacked" style={ fmt.Sprintf("width:%.1f%%; margin-left:26px; min-width:24px;", maxFloat(barW, 3)) }>
+		if allowPct > 0 {
+			<div class="seg" style={ fmt.Sprintf("width:%.1f%%; background:var(--info);", allowPct) }></div>
+		}
+		if blockPct > 0 {
+			<div class="seg" style={ fmt.Sprintf("width:%.1f%%; background:var(--block);", blockPct) }></div>
+		}
+	</div>
+}
+
+func maxFloat(a, b float64) float64 {
+	if a > b {
+		return a
+	}
+	return b
+}

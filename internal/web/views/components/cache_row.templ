@@ -1,0 +1,39 @@
+package components
+
+// CacheEntry is the view-model for one (container, name) row in the cache
+// table. A single DNS A-record response often resolves to multiple IPs for
+// the same name, so the handler groups raw cache entries before rendering and
+// each row carries the full list of IPs (most-recent first).
+type CacheEntry struct {
+	Container string
+	Name      string
+	IPs       []string
+}
+
+// CacheTBody renders the polled fragment for the DNS view's cache table. It
+// returns just the rows — the surrounding <tbody> element is the swap target.
+templ CacheTBody(entries []CacheEntry) {
+	if len(entries) == 0 {
+		<tr><td colspan="3" class="empty" style="text-align:left;">No resolutions observed yet.</td></tr>
+	} else {
+		for _, e := range entries {
+			<tr>
+				<td>
+					<div class="cont">
+						<div class="cont__icon is-sm">{ FirstUpper(e.Container) }</div>
+						<span class="cont__name" style="font-size:12px;">{ e.Container }</span>
+					</div>
+				</td>
+				<td class="mono" style="color:var(--text);">{ e.Name }</td>
+				<td class="mono" style="color:var(--text-muted); font-size:11.5px;">
+					for i, ip := range e.IPs {
+						if i > 0 {
+							<span style="color:var(--text-faint);">, </span>
+						}
+						{ ip }
+					}
+				</td>
+			</tr>
+		}
+	}
+}

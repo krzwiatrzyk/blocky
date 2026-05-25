@@ -1,0 +1,48 @@
+package views
+
+import (
+	"fmt"
+
+	"blocky/internal/config"
+)
+
+// SettingsData is the payload for the /settings route.
+type SettingsData struct {
+	Meta PageMeta
+	Cfg  config.Config
+}
+
+// Settings is the read-only configuration view. Values come from the
+// environment (config.Config); no write surface — labels are the only source
+// of policy and core daemon flags ship as env vars.
+templ Settings(d SettingsData) {
+	@Layout(d.Meta) {
+		<div class="card">
+			<div class="card__head">
+				<div class="card__title">
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+						<circle cx="12" cy="12" r="3"></circle>
+						<path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"></path>
+					</svg>
+					<span>Configuration</span>
+				</div>
+				<span class="card__sub">read-only · environment-driven</span>
+			</div>
+			<dl class="kv">
+				@kv("BLOCKY_API_ADDR", d.Cfg.APIAddr)
+				@kv("BLOCKY_LOG_LEVEL", d.Cfg.LogLevel)
+				@kv("BLOCKY_LOG_FORMAT", d.Cfg.LogFormat)
+				@kv("BLOCKY_DOCKER_HOST", d.Cfg.DockerHost)
+				@kv("BLOCKY_MAX_RULES_PER_CONTAINER", fmt.Sprintf("%d", d.Cfg.MaxRulesPerContainer))
+				@kv("BLOCKY_CT_MAP_SIZE", fmt.Sprintf("%d", d.Cfg.CTMapSize))
+				@kv("BLOCKY_DNS_CACHE_PER_CONTAINER", fmt.Sprintf("%d", d.Cfg.DNSCachePerContainer))
+				@kv("BLOCKY_FLOW_CACHE_SIZE", fmt.Sprintf("%d", d.Cfg.FlowCacheSize))
+			</dl>
+		</div>
+	}
+}
+
+templ kv(k, v string) {
+	<dt>{ k }</dt>
+	<dd>{ v }</dd>
+}

@@ -12,14 +12,8 @@
 # healthcheck). The binary is statically linked (CGO_ENABLED=0), so it doesn't
 # care about glibc versions on the host.
 #
-# Prerequisite on the build host:
-#
-#   task vmlinux       # generates internal/bpf/headers/vmlinux.h from the
-#                      # build host's /sys/kernel/btf/vmlinux
-#
-# vmlinux.h is gitignored and CANNOT be regenerated from inside the build
-# container (Docker build doesn't expose /sys/kernel/btf). The Dockerfile
-# below fails fast with a clear error if it's missing.
+# vmlinux.h is vendored per-arch under internal/bpf/headers/ — no host BTF
+# is read at build time. See that directory for refresh instructions.
 # ---------------------------------------------------------------------------
 
 ARG GO_VERSION=1.26
@@ -43,7 +37,7 @@ RUN apt-get update \
  && apt-get update \
  && apt-get install -y --no-install-recommends \
         clang-18 lld-18 llvm-18 \
-        libbpf-dev bpftool make \
+        libbpf-dev make \
  && ln -sf /usr/bin/clang-18 /usr/local/bin/clang \
  && ln -sf /usr/bin/llc-18 /usr/local/bin/llc \
  && ln -sf /usr/bin/llvm-strip-18 /usr/local/bin/llvm-strip \
@@ -72,14 +66,6 @@ RUN ARCH="$(dpkg --print-architecture)" \
 
 # Source tree.
 COPY . .
-
-# vmlinux.h is the one piece of build state that has to come from the host
-# kernel. Fail fast with a helpful message if the operator forgot to run
-# `task vmlinux` before `docker build`.
-RUN test -f internal/bpf/headers/vmlinux.h \
- || { echo "ERROR: internal/bpf/headers/vmlinux.h is missing." >&2; \
-      echo "Run \"task vmlinux\" on the build host first." >&2; \
-      exit 1; }
 
 # Generate everything: templ → _templ.go, tailwind → tailwind.css, bpf2go →
 # embedded BPF bytes. The Taskfile knows these orderings; we replay them here

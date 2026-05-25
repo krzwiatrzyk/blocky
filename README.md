@@ -67,9 +67,10 @@ Blocky watches the Docker event stream. For each container labelled
 ## Requirements
 
 - Linux kernel ≥ 6.6 (TCX) or ≥ 5.10 (classic TC fallback).
-- BTF available at `/sys/kernel/btf/vmlinux`.
-- Build toolchain: `clang`, `bpftool`, `libbpf-dev` — installed by
-  `task install:prereqs`.
+- BTF available at `/sys/kernel/btf/vmlinux` at runtime (CO-RE relocations).
+- Build toolchain: `clang`, `libbpf-dev` — installed by `task install:prereqs`.
+  `vmlinux.h` is vendored per-arch under `internal/bpf/headers/`, refreshed
+  with `task refresh:vmlinux`.
 - Runtime capabilities: `CAP_BPF`, `CAP_NET_ADMIN`, `CAP_SYS_ADMIN`.
 
 ## Quick start
@@ -78,7 +79,7 @@ Blocky watches the Docker event stream. For each container labelled
 # One-time: install build prerequisites.
 task install:prereqs
 
-# Generate BPF bindings and vmlinux.h for the running kernel.
+# Generate BPF bindings, templ, and tailwind output.
 task gen
 
 # Build the binary.
@@ -97,10 +98,8 @@ open http://localhost:8080/
 ### Running in Docker
 
 ```sh
-# Generate vmlinux.h on the host (Docker build cannot read /sys/kernel/btf).
-task vmlinux
-
-# Build the image and start the daemon.
+# Build the image and start the daemon. vmlinux.h is vendored, so the build
+# is self-contained — no host BTF is read at build time.
 docker compose up -d --build
 ```
 

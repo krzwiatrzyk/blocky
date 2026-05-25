@@ -5,6 +5,10 @@
 # final job stitches the digests into a single manifest list. This avoids
 # QEMU emulation entirely and keeps both arch builds running in parallel.
 #
+# vmlinux.h is vendored per-arch under internal/bpf/headers/ (see that
+# file for refresh instructions), so the runner does not need bpftool or
+# any kernel-tools packages.
+#
 # All third-party actions are pinned to commit SHAs — bump the SHA when
 # upgrading and keep the trailing `# vX.Y.Z` comment in sync.
 
@@ -47,24 +51,6 @@ jobs:
         run: echo "IMAGE_NAME=${REPO,,}" >> "$GITHUB_ENV"
         env:
           REPO: ${{ github.repository }}
-
-      # vmlinux.h is host-kernel-specific and can't be generated inside the
-      # build container (Docker build can't read /sys/kernel/btf). We dump
-      # it on the runner before invoking `docker build`. CO-RE makes the
-      # resulting BPF object portable to other kernels at load time.
-      - name: Generate vmlinux.h from runner BTF
-        run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends linux-tools-generic
-          BPFTOOL=$(find /usr/lib/linux-tools -name bpftool -type f -executable | head -n1)
-          if [ -z "$BPFTOOL" ]; then
-            echo "bpftool not found under /usr/lib/linux-tools" >&2
-            exit 1
-          fi
-          mkdir -p internal/bpf/headers
-          sudo "$BPFTOOL" btf dump file /sys/kernel/btf/vmlinux format c \
-            > internal/bpf/headers/vmlinux.h
 
       - uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
 

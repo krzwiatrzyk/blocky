@@ -13,11 +13,11 @@ tasks:
       - task --list
 
   install:prereqs:
-    desc: Install build prerequisites (clang, llvm, libbpf, golangci-lint, bpftool, templ, tailwindcss)
+    desc: Install build prerequisites (clang, llvm, libbpf, golangci-lint, templ, tailwindcss)
     deps: [install:templ, install:tailwind]
     cmds:
       - sudo apt-get update
-      - sudo apt-get install -y clang llvm libbpf-dev linux-headers-generic linux-tools-common linux-tools-$(uname -r)
+      - sudo apt-get install -y clang llvm libbpf-dev
       - |
         if ! command -v golangci-lint >/dev/null 2>&1; then
           curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh \
@@ -25,9 +25,8 @@ tasks:
         fi
     status:
       - command -v clang
-      - command -v bpftool
       - command -v golangci-lint
-      - test -f /usr/include/bpf/bpf_helpers.h || test -f /usr/include/aarch64-linux-gnu/bpf/bpf_helpers.h
+      - test -f /usr/include/bpf/bpf_helpers.h || test -f /usr/include/aarch64-linux-gnu/bpf/bpf_helpers.h || test -f /usr/include/x86_64-linux-gnu/bpf/bpf_helpers.h
 
   install:templ:
     desc: Install the templ CLI into $(go env GOPATH)/bin
@@ -54,25 +53,26 @@ tasks:
       - test -x bin/tailwindcss
       - ./bin/tailwindcss --help >/dev/null 2>&1
 
-  vmlinux:
-    desc: Generate vmlinux.h from running kernel BTF (inside colima VM)
-    cmds:
-      - mkdir -p internal/bpf/headers
-      - sudo apt-get install -y linux-tools-generic linux-tools-common
-      - |
-        sudo sh -c 'set -- /usr/lib/linux-tools-*/bpftool; exec "$1" btf dump file /sys/kernel/btf/vmlinux format c' > internal/bpf/headers/vmlinux.h
-    status:
-      - test -f internal/bpf/headers/vmlinux.h
-
   gen:
     desc: Generate everything (bpf2go + templ + tailwind)
     deps: [gen:bpf, gen:templ, gen:tailwind]
 
   gen:bpf:
-    desc: Run bpf2go via go generate
-    deps: [vmlinux]
+    desc: Run bpf2go via go generate (uses vendored vmlinux.h per arch)
     cmds:
       - go generate ./...
+
+  refresh:vmlinux:
+    desc: Refresh vendored per-arch vmlinux.h snapshots from libbpf/vmlinux.h
+    vars:
+      PIN: 5c36ac2080a8d3c1216470ce97e6502ed50272e5
+      KVER: "6.19"
+    cmds:
+      - mkdir -p internal/bpf/headers
+      - curl -sSfL -o internal/bpf/headers/vmlinux_amd64.h
+          https://raw.githubusercontent.com/libbpf/vmlinux.h/{{.PIN}}/include/x86/vmlinux_{{.KVER}}.h
+      - curl -sSfL -o internal/bpf/headers/vmlinux_arm64.h
+          https://raw.githubusercontent.com/libbpf/vmlinux.h/{{.PIN}}/include/aarch64/vmlinux_{{.KVER}}.h
 
   gen:templ:
     desc: Generate _templ.go files from .templ sources
@@ -129,5 +129,5 @@ tasks:
     desc: Remove build artifacts
     cmds:
       - rm -f {{.BIN}}
-      - rm -f internal/bpf/blockybpf_bpfel.go
-      - rm -f internal/bpf/blockybpf_bpfel.o
+      - rm -f internal/bpf/blockybpf_*_bpfel.go
+      - rm -f internal/bpf/blockybpf_*_bpfel.o

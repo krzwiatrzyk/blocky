@@ -15,4 +15,4 @@
 // Run `task gen` (or `go generate ./...`) after changes to blocky.c.
 package bpf
 
-//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang -target amd64,arm64 -cflags "-O2 -g -Wall -Werror" blockyBPF blocky.c
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -cc clang -target amd64,arm64 -cflags "-O2 -g -Wall -Werror -Wno-missing-declarations" blockyBPF blocky.c
